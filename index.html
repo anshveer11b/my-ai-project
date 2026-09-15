@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Cyber Cell — Signal Lamp</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --idle-color: #F2A93C;
+    --idle-glow: rgba(242,169,60,0.55);
+    --idle-glow-soft: rgba(242,169,60,0.16);
+
+    --success-color: #35D07F;
+    --success-glow: rgba(53,208,127,0.55);
+    --success-glow-soft: rgba(53,208,127,0.16);
+
+    --alert-color: #FF4438;
+    --alert-glow: rgba(255,68,56,0.6);
+    --alert-glow-soft: rgba(255,68,56,0.2);
+
+    /* live values, swapped by [data-state] below */
+    --state-color: var(--idle-color);
+    --state-glow: var(--idle-glow);
+    --state-glow-soft: var(--idle-glow-soft);
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0;
+    background:#000;
+    min-height:100vh;
+  }
+
+  body{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:56px 20px 80px;
+    font-family:'Barlow Condensed', sans-serif;
+    color:#e9e6df;
+    overflow-x:hidden;
+    transition: background 1s ease;
+  }
+
+  /* ambient room tint — the light the lamp casts across the whole page */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background: radial-gradient(ellipse 900px 640px at 50% 10%, var(--state-glow-soft), transparent 60%);
+    transition: background 1.1s ease;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  body[data-state="idle"]      { --state-color: var(--idle-color);    --state-glow: var(--idle-glow);    --state-glow-soft: var(--idle-glow-soft); }
+  body[data-state="scanning"]  { --state-color: var(--idle-color);    --state-glow: var(--idle-glow);    --state-glow-soft: var(--idle-glow-soft); }
+  body[data-state="success"]   { --state-color: var(--success-color); --state-glow: var(--success-glow); --state-glow-soft: var(--success-glow-soft); }
+  body[data-state="alert"]     { --state-color: var(--alert-color);   --state-glow: var(--alert-glow);   --state-glow-soft: var(--alert-glow-soft); }
+
+  .room{
+    position:relative;
+    z-index:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    width:100%;
+  }
+
+  /* ---------- lamp ---------- */
+
+  .lamp-rig{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    transform-origin: top center;
+  }
+
+  .mount{
+    width:16px; height:8px;
+    background:#1c1e21;
+    border-radius:2px 2px 0 0;
+  }
+
+  .cord{
+    width:3px; height:88px;
+    background:linear-gradient(180deg,#44474b,#1a1c1f);
+  }
+
+  .shade{
+    width:132px; height:62px;
+    clip-path: polygon(32% 0%, 68% 0%, 100% 100%, 0% 100%);
+    background:linear-gradient(180deg,#3b3e42 0%, #1f2124 100%);
+    box-shadow: inset 0 -8px 14px rgba(0,0,0,.55);
+    position:relative;
+  }
+
+  .shade::after{
+    content:"";
+    position:absolute; top:0; left:32%; right:32%; height:2px;
+    background:rgba(255,255,255,.22);
+  }
+
+  .bulb-wrap{
+    width:132px;
+    display:flex;
+    justify-content:center;
+    margin-top:-10px;
+  }
+
+  .bulb{
+    position:relative;
+    z-index:2;
+    width:44px; height:50px;
+    border-radius: 50% 50% 46% 46% / 58% 58% 42% 42%;
+    background: radial-gradient(circle at 36% 28%, #fffaf0 0%, var(--state-color) 55%, rgba(0,0,0,.22) 100%);
+    box-shadow: 0 0 18px 4px var(--state-glow), 0 0 55px 22px var(--state-glow-soft);
+    transition: background 1s ease, box-shadow 1s ease;
+    animation: flicker-idle 4.6s ease-in-out infinite;
+  }
+
+  .bulb::before{
+    content:"";
+    position:absolute; top:11%; left:24%;
+    width:9px; height:13px;
+    background:rgba(255,255,255,.55);
+    border-radius:50%;
+    filter:blur(1px);
+  }
+
+  body[data-state="scanning"] .bulb{ animation: flicker-scan .55s steps(2, jump-none) infinite; }
+  body[data-state="alert"] .bulb{ animation: pulse-alert 1.6s ease-in-out infinite; }
+  body[data-state="success"] .bulb{ animation: settle-success 1s ease-out 1; }
+
+  .glow-cone{
+    position:absolute;
+    top:118px; left:50%; transform:translateX(-50%);
+    width:560px; max-width:150vw; height:520px;
+    background: radial-gradient(ellipse at 50% 0%, var(--state-glow-soft) 0%, transparent 65%);
+    filter: blur(6px);
+    transition: background 1.1s ease;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  @keyframes flicker-idle{
+    0%,100%{ filter:brightness(1); }
+    46%{ filter:brightness(.93); }
+    54%{ filter:brightness(1.04); }
+  }
+  @keyframes flicker-scan{
+    0%,100%{ opacity:1; }
+    50%{ opacity:.5; }
+  }
+  @keyframes pulse-alert{
+    0%,100%{ transform:scale(1); filter:brightness(1); }
+    50%{ transform:scale(1.06); filter:brightness(1.3); }
+  }
+  @keyframes settle-success{
+    0%{ transform:scale(.82); filter:brightness(1.5); }
+    100%{ transform:scale(1); filter:brightness(1); }
+  }
+
+  .nameplate{
+    margin-top:14px;
+    font-size:13px;
+    letter-spacing:.06em;
+    color:#75797e;
+  }
+
+  /* ---------- console ---------- */
+
+  .console{
+    position:relative;
+    z-index:1;
+    width:min(360px, 90vw);
+    margin-top:36px;
+    background:linear-gradient(180deg,#1b1c1e,#0c0d0f);
+    border:1px solid #2a2c2f;
+    border-radius:10px;
+    padding:24px 22px 22px;
+    box-shadow: 0 24px 46px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+
+  .console-row{
+    display:flex;
+    gap:12px;
+  }
+
+  .field{
+    flex:1;
+    text-align:left;
+  }
+
+  .field label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:#82868c;
+    margin-bottom:6px;
+  }
+
+  .field input{
+    width:100%;
+    background:#050506;
+    border:1px solid #26282b;
+    border-radius:6px;
+    padding:10px 11px;
+    color: var(--state-color);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:17px;
+    transition: color 1s ease, border-color .2s ease;
+  }
+  .field input::placeholder{ color:#4b4e52; }
+  .field input:focus{ outline:none; border-color:var(--state-color); }
+  .field input:focus-visible{ box-shadow: 0 0 0 2px var(--state-glow); }
+
+  button#scanBtn{
+    width:100%;
+    margin-top:16px;
+    padding:14px;
+    border:none;
+    border-radius:8px;
+    background:linear-gradient(180deg,#2c2e31,#17181a);
+    color:#eceae3;
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:18px;
+    font-weight:600;
+    letter-spacing:.02em;
+    cursor:pointer;
+    box-shadow: 0 3px 0 #0a0a0b, 0 8px 16px rgba(0,0,0,.5);
+    transition: transform .12s ease, box-shadow .12s ease, opacity .2s ease;
+  }
+  button#scanBtn:hover{ background:linear-gradient(180deg,#313336,#1a1b1d); }
+  button#scanBtn:active{ transform:translateY(3px); box-shadow:0 0 0 #0a0a0b, 0 3px 8px rgba(0,0,0,.5); }
+  button#scanBtn:disabled{ opacity:.55; cursor:progress; }
+  button#scanBtn:focus-visible{ outline:2px solid var(--state-color); outline-offset:3px; }
+
+  .readout{
+    margin-top:16px;
+    background:#050506;
+    border:1px solid #26282b;
+    border-radius:6px;
+    padding:11px 12px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color: var(--state-color);
+    min-height:18px;
+    text-align:left;
+    transition: color 1s ease;
+  }
+
+  @media (max-width:380px){
+    .lamp-rig{ transform:scale(.85); }
+    .glow-cone{ top:96px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .bulb, body[data-state="scanning"] .bulb, body[data-state="alert"] .bulb, body[data-state="success"] .bulb{
+      animation:none !important;
+    }
+  }
+</style>
+</head>
+<body data-state="idle">
+
+  <div class="room">
+    <div class="lamp-rig">
+      <div class="mount"></div>
+      <div class="cord"></div>
+      <div class="shade"></div>
+      <div class="bulb-wrap"><div class="bulb" id="bulb"></div></div>
+    </div>
+
+    <div class="glow-cone"></div>
+
+    <div class="nameplate">AI Cyber Cell</div>
+
+    <div class="console">
+      <div class="console-row">
+        <div class="field">
+          <label for="bytes">Bytes downloaded</label>
+          <input type="number" id="bytes" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="logins">Login attempts</label>
+          <input type="number" id="logins" placeholder="0" inputmode="numeric">
+        </div>
+      </div>
+
+      <button id="scanBtn" onclick="analyzeTraffic()">Scan network</button>
+
+      <div class="readout" id="readout">Standby — no scan yet</div>
+    </div>
+  </div>
+
+<script>
+  const readout = document.getElementById('readout');
+  const scanBtn = document.getElementById('scanBtn');
+
+  function setState(state, message){
+    document.body.dataset.state = state;
+    readout.textContent = message;
+  }
+
+  async function analyzeTraffic(){
+    const bytesRaw = parseInt(document.getElementById('bytes').value, 10);
+    const loginsRaw = parseInt(document.getElementById('logins').value, 10);
+    const bytes = Number.isFinite(bytesRaw) ? bytesRaw : 0;
+    const logins = Number.isFinite(loginsRaw) ? loginsRaw : 0;
+
+    scanBtn.disabled = true;
+    setState('scanning', 'Scanning…');
+
+    try{
+      const response = await fetch('/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bytes_downloaded: bytes, login_attempts: logins })
+      });
+
+      if(!response.ok) throw new Error('Bad response from server');
+
+      const data = await response.json();
+      const status = (data.status || '').toString();
+
+      if(status.toUpperCase().includes('ALERT')){
+        setState('alert', status || 'Alert — anomaly detected');
+      } else {
+        setState('success', status || 'Clear — no anomalies detected');
+      }
+    } catch (err){
+      setState('alert', "Signal lost — can't reach the AI server.");
+    } finally {
+      scanBtn.disabled = false;
+    }
+  }
+</script>
+
+</body>
+</html>
