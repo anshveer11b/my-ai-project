@@ -73,6 +73,7 @@ def analyze_traffic(traffic: NetworkTraffic):
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         logs_collection.insert_one(log_entry)
+        print(f"💾 Saved log to MongoDB: {log_entry}")
         
     return {"status": status, "data": traffic}
 
